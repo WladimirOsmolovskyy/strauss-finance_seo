@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <title>Strauss Finance – Blueprint: Keyword-Recherche per Ahrefs-API (n8n-fähig)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;line-height:1.55;color:#15202b;margin:40px;max-width:1024px}
+    h1,h2,h3{line-height:1.25}
+    h1{font-size:1.9rem;margin-top:0}
+    h2{font-size:1.4rem;margin-top:2.2rem;border-top:1px solid #eee;padding-top:1.2rem}
+    h3{font-size:1.1rem;margin-top:1.6rem}
+    code,kbd,pre{font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace}
+    pre{background:#0b1020;color:#e7ecff;padding:16px;border-radius:8px;overflow:auto}
+    .callout{background:#f6fbff;border-left:4px solid #0ea5e9;padding:12px 16px;border-radius:4px;margin:16px 0}
+    .todo{background:#f9fafb;border-left:4px solid #94a3b8;padding:12px 16px;border-radius:4px;margin:16px 0}
+    .small{color:#475569;font-size:0.92rem}
+    .grid{display:grid;gap:22px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+    .metric{background:#fafafa;border:1px solid #eee;border-radius:10px;padding:14px}
+    ul.tight>li{margin:4px 0}
+    .tag{display:inline-block;background:#eef2ff;color:#3730a3;border-radius:999px;padding:2px 8px;font-size:.78rem;margin-right:6px}
+    .hr{height:1px;background:#eee;margin:24px 0}
+    a{color:#0ea5e9;text-decoration:none}
+  </style>
+</head>
+<body>
+
+<h1>SEO-Blueprint (intern) – Keyword-Recherche mit der Ahrefs-API für <em>Strauss Finance</em> (n8n-fähig)</h1>
+<p class="small">
+Version: 1.0 • Stand: 08.10.2025 • Zielmarkt/-sprache: Deutschland / Deutsch • Datenquelle: <strong>Ahrefs API v3</strong> (nur) 
+– Referenzen: Ahrefs API Intro, Keywords Explorer Endpunkte, Management & Site Explorer. Siehe Quellenhinweise am Ende.
+</p>
+
+<div class="callout">
+<strong>Executive Summary:</strong> Dieses Dokument beschreibt einen vollständig API-getriebenen Prozess zur Keyword-Recherche für Versicherungs- und Finanzthemen (z. B. „Hausratversicherung“, „Berufsunfähigkeitsversicherung“, „private Krankenversicherung“, „Finanzierung“). 
+Die Pipeline generiert Ideen, reichert sie mit Volumen/KD/SERP-Signalen an, filtert nach Schwellenwerten, clustert semantisch & intentbasiert und liefert score-basierte Priorisierungen als CSV/JSON – alles automatisierbar in <strong>n8n</strong>.
+</div>
+
+<!-- ========================================= -->
+<h2>1) Ziele & Leitplanken</h2>
+
+<h3>1.1 Strategische Ziele</h3>
+<ul>
+  <li><strong>Ideengenerierung</strong> aus Seed-Begriffen und Wettbewerbsumfeldern (Keywords Explorer: Matching/Related Terms).</li>
+  <li><strong>Messung & Vergleich</strong> von Suchvolumen (DE), Keyword Difficulty (KD) und CPC/Clicks, um Chancen zu quantifizieren.</li>
+  <li><strong>Intent-Abgleich</strong> (informational / transactional / navigational) für Funnel-Mapping (Blog ↔ Leistungsseiten).</li>
+  <li><strong>Clustering</strong> in Themenhubs (z. B. „Haftpflicht“, „Sach & Alltag“, „Finanzierung“) für interne Verlinkung/Hub-Seiten.</li>
+  <li><strong>Priorisierung</strong> via Opportunity-Score (z. B. Volumen × Intent-Score ÷ KD) je nach Geschäftsrelevanz.</li>
+  <li><strong>Reporting/Output</strong> für Content-Briefings, CMS-Importe (Framer/Sheets) und Roadmaps.</li>
+</ul>
+
+<h3>1.2 Rolle der Ahrefs-API</h3>
+<p>Ahrefs API v3 stellt Endpunkte für <em>Keywords Explorer</em> (u. a. Overview, Matching Terms, Related Terms, Volume by Country), 
+<em>Site Explorer</em> (u. a. Organic Keywords) und <em>SERP Overview</em> bereit. KD ist ein zentraler Ranking-Schwierigkeitsindikator (0–100), der aus den verlinkenden Domains der Top-10 abgeleitet wird (nicht linear). Quellenhinweise unten.</p>
+
+<div class="todo"><strong>Nächste Schritte an dieser Stelle:</strong> 
+<ul class="tight">
+  <li>Seed-Liste (10–30 Kernbegriffe) für Privat- und Firmenkunden definieren.</li>
+  <li>Geschäftsprioritäten je Kategorie festlegen (z. B. BU & PKV hoch, Hausrat mittel).</li>
+  <li>n8n-Credentials: Ahrefs Bearer Token prüfen.</li>
+</ul></div>
+
+<!-- ========================================= -->
+<h2>2) Workflow-Phasen (End-to-End)</h2>
+
+<h3>Phase A – Input & Seeds</h3>
+<div class="grid">
+  <div class="metric">
+    <strong>Quellen</strong><br/>
+    <span class="tag">Manuell</span> Stakeholder-Seeds<br/>
+    <span class="tag">Website</span> Nav, H1/H2, interne Suchbegriffe<br/>
+    <span class="tag">Wettbewerb</span> Domains (für Cross-Checks via Organic Keywords)
+  </div>
+  <div class="metric">
+    <strong>Beispiele</strong><br/>
+    „hausratversicherung“, „haftpflichtversicherung“, „berufsunfähigkeitsversicherung“, „private krankenversicherung“, „finanzierung“, „baufi“
+  </div>
+</div>
+
+<div class="todo"><strong>Jetzt möglich:</strong> Seeds in n8n als JSON pflegen (z. B. <code>["hausratversicherung","haftpflichtversicherung",...]</code>)</div>
+
+<h3>Phase B – Datenerhebung (Ahrefs API)</h3>
+<p>Für jeden Seed werden über die <em>Keywords Explorer</em> Endpunkte Ideen und Metriken geholt:</p>
+<ul>
+  <li><strong>Matching Terms</strong> – Keywords, die den Seed enthalten (Ideenbreite). [API: <em>list-matching-terms</em>]</li>
+  <li><strong>Related Terms</strong> – semantisch verwandte Begriffe (Ideentiefe). [API: <em>list-related-terms</em>]</li>
+  <li><strong>Overview</strong> – Metriken für Keyword-Set: KD, Klicks, CPC etc. [API: <em>get-a-overview</em>]</li>
+  <li><strong>Volume by Country</strong> – Länderspezifisches Volumen (z. B. <code>DE</code>). [API: <em>get-a-volume-by-country</em>]</li>
+  <li><strong>(Optional) Site Explorer → Organic Keywords</strong> – Wettbewerbsorientierte Ideensuche je Domain/URL.</li>
+</ul>
+
+<p class="small">Technik: Auth via Bearer Token im Header. Alle Endpunkte und Parameter siehe Quellen.</p>
+
+<div class="todo"><strong>Jetzt möglich:</strong> In n8n pro Seed eine HTTP-Request-Node-Gruppe ausführen (Matching → Related → Overview → Volume DE) und Ergebnisse zu einem Item mergen.</div>
+
+<h3>Phase C – Anreicherung</h3>
+<ul>
+  <li><strong>Language/Location</strong>: Nur <code>DE</code>, deutschsprachige Terms behalten (Regex/Stopword-Heuristik).</li>
+  <li><strong>Intent-Heuristik</strong> (regelbasiert, später ML möglich): 
+    <ul class="tight">
+      <li>Transactional: enthält „abschließen“, „angebot“, „tarif“, „kosten“, „rechner“, „jetzt“</li>
+      <li>Informational: enthält „was ist“, „wie“, „vergleich“, „checkliste“, „test“</li>
+      <li>Navigational: enthält Marken/Produktnamen</li>
+    </ul>
+  </li>
+  <li><strong>Opportunity-Score</strong> (Beispiel): <code>Opp = (Volumen_DE_normalisiert × IntentScore × BusinessScore) / (1 + KD_normalisiert)</code></li>
+</ul>
+
+<div class="todo"><strong>Jetzt möglich:</strong> n8n <em>Function</em>-Node für Intent-Rules und Score-Berechnung (gewichtbar je Geschäftsbereich).</div>
+
+<h3>Phase D – Filterung (Qualität & Machbarkeit)</h3>
+<ul>
+  <li><strong>Min. Volumen (DE)</strong>: z. B. <code>&ge; 80</code></li>
+  <li><strong>Max. KD</strong>: z. B. <code>&le; 45</code> (non-linearer KD-Index; Quelle siehe unten)</li>
+  <li><strong>Serp-Reinheit</strong> (optional, per SERP Overview): zu „Job/Brand-Trap“ filtern</li>
+  <li><strong>Duplicate/Canonicals</strong>: Singular/Plural, diakritische Varianten zusammenführen</li>
+</ul>
+
+<div class="todo"><strong>Jetzt möglich:</strong> n8n <em>IF</em>-Nodes: <em>IF</em> KD &gt; 45 → Drop; <em>IF</em> Volumen_DE &lt; 80 → Drop; sonst → weiter.</div>
+
+<h3>Phase E – Clustering (Themen & SERP-Nähe)</h3>
+<ol>
+  <li><strong>Lexikalische Vor-Cluster</strong>: Token-Jaccard ≥ 0.5, z. B. Gruppierung nach Stamm („haftpflicht“, „hausrat“, „bu“).</li>
+  <li><strong>Intent-Kohärenz</strong>: gleiche Intent-Klasse zusammenhalten (separate Cluster für Info vs. Transaktion).</li>
+  <li><strong>Head-/Mid-/Long-Tail</strong>: nach Volumen/KD stufen; Long-Tails oft schnellere Wins.</li>
+</ol>
+
+<div class="todo"><strong>Jetzt möglich:</strong> n8n <em>Code</em>-Node (JS) oder <em>Item Lists</em> für gruppierte Arrays; Cluster-Label = Haupt-N-gramm (z. B. „haftpflichtversicherung“) + Intent.</div>
+
+<h3>Phase F – Priorisierung & Routing</h3>
+<ul>
+  <li><strong>Scores kombinieren</strong>: Opp-Score, Business-Score, Zeit-zu-Rank (aus KD), Wettbewerb/Nischenindikatoren.</li>
+  <li><strong>Routing</strong>:
+    <ul class="tight">
+      <li>Transaktionale Cluster → Leistungsseiten (z. B. BU/PKV)</li>
+      <li>Informationale Cluster → Blog-Hub/Guides (z. B. „was ist hausratversicherung“)</li>
+    </ul>
+  </li>
+</ul>
+
+<div class="todo"><strong>Jetzt möglich:</strong> n8n: Zwei Outputs erzeugen (Blog-Backlog vs. Leistungs-Backlog) mit jeweils Top-n Clustern und Keywords.</div>
+
+<h3>Phase G – Reporting/Export</h3>
+<ul>
+  <li><strong>CSV/JSON</strong> mit Feldern: <code>Keyword, Cluster, Intent, Volume_DE, KD, CPC, Clicks, OppScore, Ziel-Template, Interne-Links-Vorschläge</code></li>
+  <li><strong>Sheets</strong> für Framer-/CMS-Einbindung; separate Tabs pro Kategorie (Privat/Firma).</li>
+</ul>
+
+<div class="todo"><strong>Jetzt möglich:</strong> n8n → <em>Google Sheets</em> „Append Row“ / <em>Write</em> + Versionierung (Datum, Seed-Batch).</div>
+
+<!-- ========================================= -->
+<h2>3) API-Endpunkte & n8n-Mapping</h2>
+
+<div class="grid">
+  <div class="metric">
+    <strong>Keywords Explorer – Matching Terms</strong>
+    <div class="small">Ideen, die den Seed enthalten.</div>
+    <div class="hr"></div>
+    <code>GET /keywords-explorer/matching-terms</code><br/>
+    <em>n8n</em>: HTTP Request (GET), Auth: Bearer, Param u. a.: <code>q=SEED</code>, <code>country=DE</code>, Paging
+  </div>
+  <div class="metric">
+    <strong>Keywords Explorer – Related Terms</strong>
+    <div class="small">Semantisch verwandte Ideen.</div>
+    <div class="hr"></div>
+    <code>GET /keywords-explorer/related-terms</code><br/>
+    <em>n8n</em>: HTTP Request (GET), <code>q=SEED</code>, <code>country=DE</code>
+  </div>
+  <div class="metric">
+    <strong>Keywords Explorer – Overview</strong>
+    <div class="small">KD, CPC, Clicks u. a. für Keyword-Set.</div>
+    <div class="hr"></div>
+    <code>GET /keywords-explorer/overview</code><br/>
+    <em>n8n</em>: HTTP Request (GET), <code>keywords=comma-separated</code>, <code>country=DE</code>
+  </div>
+  <div class="metric">
+    <strong>Keywords Explorer – Volume by Country</strong>
+    <div class="small">Volumen nach Land (DE extrahieren).</div>
+    <div class="hr"></div>
+    <code>GET /keywords-explorer/volume-by-country</code>
+  </div>
+  <div class="metric">
+    <strong>Site Explorer – Organic Keywords</strong>
+    <div class="small">Optional für Wettbewerbs-Seeds.</div>
+    <div class="hr"></div>
+    <code>GET /site-explorer/organic-keywords</code>
+  </div>
+  <div class="metric">
+    <strong>Management – Project Keywords</strong>
+    <div class="small">Kostenlose Projekt-Keywords auflisten (nützlich für Sync).</div>
+    <div class="hr"></div>
+    <code>GET /management/project-keywords</code>
+  </div>
+</div>
+
+<p class="small">
+Offizielle Referenzen: API Intro & Endpunkte (Keywords Explorer/Overview/Related/Matching/Volume-by-country, Site Explorer Organic Keywords, Management Project Keywords). KD-Definition: Ahrefs KD-Seite.
+</p>
+
+<div class="todo"><strong>Jetzt möglich:</strong> In n8n Reusable Sub-workflow „Ahrefs-Keyword-Batch“ anlegen, der alle obigen Calls orchestriert (mit Rate-Limit & Pagination).</div>
+
+<!-- ========================================= -->
+<h2>4) Entscheidungslogik (Filter & Scoring)</h2>
+
+<pre><code>// Schwellenwerte (Version 1 – konservativ, DE-Versicherung):
+const MIN_VOL_DE = 80;        // unter 80 eher Long-Tail/Blog-only
+const MAX_KD = 45;            // >45 häufig mittlere/schwere SERPs
+const INTENT_WEIGHTS = { informational: 0.9, transactional: 1.2, navigational: 0.6 };
+const BUSINESS_WEIGHTS = { BU: 1.3, PKV: 1.3, Haftpflicht: 1.0, Hausrat: 0.9, Finanzierung: 1.1 };
+
+// Normalisierung (0..1) auf Batch-Basis:
+normalize = (x, min, max) => (max === min) ? 0 : (x - min) / (max - min);
+
+// Opportunity-Score:
+Opp = (VolNorm * IntentWeight * BusinessWeight) / (1 + KDNorm);
+
+// Drop-Regeln:
+if (KD &gt; MAX_KD) drop("zu schwer");
+if (Volumen_DE &lt; MIN_VOL_DE &amp;&amp; intent !== "transactional") drop("zu gering");
+if (brandtrap || jobtrap) drop("SERP ungeeignet");
+</code></pre>
+
+<div class="todo"><strong>Jetzt möglich:</strong> n8n Function-Node für Normalisierung/Scoring; Schwellenwerte als <em>Environment</em> Variablen konfigurierbar machen.</div>
+
+<!-- ========================================= -->
+<h2>5) Clustering-Verfahren (leichtgewichtige Umsetzung)</h2>
+
+<ol>
+  <li><strong>Vorverarbeitung</strong>: Kleinschreibung, Stemming (de-minimal), Entfernen von Stoppwörtern.</li>
+  <li><strong>Token-Set-Signatur</strong>: für jedes Keyword Menge signifikanter Token.</li>
+  <li><strong>Jaccard-Ähnlichkeit</strong>: Cluster, wenn <code>J ≥ 0.5</code> und gleicher Intent.</li>
+  <li><strong>Cluster-Label</strong>: häufigstes Token-2-gram (z. B. „hausrat versicherung“) + Intent Suffix.</li>
+  <li><strong>Headword-Routing</strong>: Cluster-Label mappt auf Kategorie (BU, PKV, Haftpflicht, Hausrat, Finanzierung ...).</li>
+</ol>
+
+<div class="todo"><strong>Jetzt möglich:</strong> In n8n einen <em>Code</em>-Node für einfache Jaccard-Cluster (kein Embedding nötig; stabil & transparent).</div>
+
+<!-- ========================================= -->
+<h2>6) Flowchart (Mermaid, konzeptionell)</h2>
+
+<pre><code class="language-mermaid">flowchart TD
+  A[Seed-Liste (DE)] --> B{pro Seed}
+  B --> C1[Keywords Explorer: Matching Terms]
+  B --> C2[Keywords Explorer: Related Terms]
+  C1 --> D[Merge &amp; Dedupe]
+  C2 --> D
+  D --> E[Overview: KD, CPC, Clicks]
+  D --> F[Volume by Country: DE]
+  E --> G[Enrichment: Intent, BusinessScore]
+  F --> G
+  G --> H{Filter}
+  H -->|KD&gt;45| X1[Drop]
+  H -->|Vol_DE&lt;80 &amp; not TX| X2[Drop]
+  H -->|ok| I[Clustering: Jaccard + Intent]
+  I --> J[OppScore berechnen]
+  J --> K{Routing}
+  K -->|Transactional| L[Leistungsseiten-Backlog]
+  K -->|Informational| M[Blog-Backlog]
+  L --> R[Export CSV/Sheets]
+  M --> R
+</code></pre>
+
+<div class="todo"><strong>Jetzt möglich:</strong> Mermaid-Diagramm in interner Doku/Notion ablegen; n8n-Subworkflows entlang der Knoten benennen.</div>
+
+<!-- ========================================= -->
+<h2>7) Reporting-Schema (CSV/JSON)</h2>
+
+<pre><code>[
+  {
+    "keyword": "hausratversicherung kosten",
+    "cluster": "hausratversicherung | transactional",
+    "intent": "transactional",
+    "volume_de": 5400,
+    "kd": 38,
+    "cpc_eur": 2.10,
+    "clicks": 0.62,
+    "opp_score": 0.73,
+    "business_bucket": "Sach & Alltag",
+    "route": "Leistungsseite",
+    "internal_links": ["Hausrat-Guide", "Schadenservice", "Kosten-Faktoren"],
+    "notes": "Preisorientiert; benötigt Rechner/CTA."
+  }
+]
+</code></pre>
+
+<div class="todo"><strong>Jetzt möglich:</strong> n8n → „Write Binary File“ (CSV) + „Google Sheets Append“; ID der Datei zurück in Pipeline loggen.</div>
+
+<!-- ========================================= -->
+<h2>8) Validierung, Grenzen & Qualitätssicherung</h2>
+
+<h3>8.1 Validierung innerhalb Ahrefs</h3>
+<ul>
+  <li><strong>Cross-Check von Ideenquellen</strong>: Matching vs. Related Terms vergleichen; nur Schnittmenge mit hohem Opp-Score priorisieren.</li>
+  <li><strong>Volumen-Plausibilität</strong>: <em>Volume by Country</em> ausschließlich für <code>DE</code> heranziehen; Abweichungen markieren.</li>
+  <li><strong>KD-Kontext</strong>: KD ist nicht linear; 40→50 ist ein stärkerer Sprung als 10→20. (Ahrefs KD-Definition beachten.)</li>
+  <li><strong>SERP-Sanity (optional)</strong>: SERP Overview stichprobenartig prüfen (Brand/Job-Dominanz, YMYL-Einschläge).</li>
+</ul>
+
+<h3>8.2 Grenzen</h3>
+<ul>
+  <li><strong>Single-Source Bias</strong>: Nur Ahrefs (gewünscht) → keine externen Volumen/KD-Vergleiche; durch heuristische Filter & manuelle SERP-Checks mitigieren.</li>
+  <li><strong>YMYL-Domänen</strong>: Versicherungs/Finanzthemen unterliegen Vertrauenssignalen – SERP kann volatiler sein.</li>
+  <li><strong>Intent-Heuristik</strong>: Regelbasiert → regelmäßig gegen SERP-Snippets validieren.</li>
+</ul>
+
+<div class="todo"><strong>Jetzt möglich:</strong> n8n-Stichprobenreport: 20 zufällige Keywords mit SERP-Screenshot/Top-3-Titel pro Woche ausgeben (QA-Schleife).</div>
+
+<!-- ========================================= -->
+<h2>9) n8n Referenz-Implementierung (High-Level)</h2>
+
+<ol>
+  <li><strong>WF-01 Seed Intake</strong>: <em>Webhook</em> (Seeds, Kategorie-Prioritäten) → <em>Set</em> → <em>Split In Batches</em>.</li>
+  <li><strong>WF-02 Ideas</strong>: pro Seed 
+    <em>HTTP (Matching Terms)</em> → <em>HTTP (Related Terms)</em> → <em>Merge</em> → <em>Dedupe</em>.
+  </li>
+  <li><strong>WF-03 Metrics</strong>: <em>Chunk</em> Keywords (50–100/Stück) → <em>HTTP (Overview)</em> → <em>HTTP (Volume by Country)</em> → <em>Combine</em>.</li>
+  <li><strong>WF-04 Enrichment</strong>: <em>Function</em> (Intent-Rules, Business-Mapping, Normalisierung, OppScore).</li>
+  <li><strong>WF-05 Filter</strong>: <em>IF</em> KD/Volumen/Serp-Flags → zwei Pfade (drop/keep).</li>
+  <li><strong>WF-06 Clustering</strong>: <em>Code</em> Jaccard + Labeling.</li>
+  <li><strong>WF-07 Routing</strong>: Split → <em>Google Sheets</em> (Blog/Leistung Tabs) + <em>CSV Export</em>.</li>
+  <li><strong>WF-08 QA</strong>: (optional) <em>HTTP SERP Overview</em> für Stichprobe, Screenshot via externem Renderer, Versand per E-Mail/Slack.</li>
+</ol>
+
+<div class="todo"><strong>Jetzt möglich:</strong> Pro WF einen n8n Subworkflow erstellen; zentrale <em>ENV</em> für Länder-Code <code>DE</code>, KD/Volumen-Thresholds, Bucket-Gewichte.</div>
+
+<!-- ========================================= -->
+<h2>10) Praktische Parameter-Empfehlungen (V1 für Versicherungs-/Finanzumfeld)</h2>
+
+<ul>
+  <li><strong>Seeds je Kategorie</strong>: 5–8 Head-Terms (BU, PKV, Haftpflicht, Hausrat, Finanzierung/Baufinanzierung …)</li>
+  <li><strong>Volumen-Schwelle</strong>: 80 (Blog) / 120 (Leistung); für Long-Tail-Guides bewusst niedriger.</li>
+  <li><strong>Max. KD</strong>: 45 (Blog) / 40 (Leistung); spätere Stufen: bis 55 mit Backlink-Plan.</li>
+  <li><strong>Intent-Gewichte</strong>: TX 1.2, IF 0.9, NAV 0.6 – je nach Funnel anpassbar.</li>
+  <li><strong>Batching</strong>: 50–100 Keywords pro Overview-Call (Ratenlimit/Units beachten; Enterprise-Plan).</li>
+</ul>
+
+<div class="todo"><strong>Jetzt möglich:</strong> Schwellen im ENV zentralisieren; „Profil V1“ speichern und per Switch Node auswählbar machen (V1 konservativ / V2 aggressiv).</div>
+
+<!-- ========================================= -->
+<h2>11) Risiken & Governance</h2>
+<ul>
+  <li><strong>API-Units/Quota</strong>: Budgetieren; Nightly Runs; „Free Test Queries“ nur zu Dev-Zwecken.</li>
+  <li><strong>Versionierung</strong>: Jede Run-ID mit Datum/Seeds loggen; Delta-Reports (neu/entfernt/angepasst).</li>
+  <li><strong>Privacy & Compliance</strong>: Keine personenbezogenen Daten; nur SERP/Keyword-Daten.</li>
+</ul>
+
+<div class="todo"><strong>Jetzt möglich:</strong> n8n-Logging in GSheet „runs_log“ + „delta_log“; Warnungen an Slack bei Unit-Peak.</div>
+
+<!-- ========================================= -->
+<h2>12) Zusammenfassung – Top-5 Takeaways</h2>
+<ol>
+  <li><strong>Einheitliche Pipeline</strong>: Matching + Related → Overview + Volume(DE) → Heuristik → Filter → Cluster → Score → Routing.</li>
+  <li><strong>Score statt Gefühl</strong>: OppScore (Volumen × Intent × Business ÷ (1+KD)) macht Priorisierung reproduzierbar.</li>
+  <li><strong>Intent trennt Routen</strong>: Transactional → Leistungsseite; Informational → Blog. Verhindert Kannibalisierung.</li>
+  <li><strong>KD ist nicht linear</strong>: 40→50 ist „teurer“ als 10→20 – Limits je Funnel-Stufe bewusst setzen.</li>
+  <li><strong>Leichtes Clustering reicht</strong>: Jaccard+Intent ist robust & transparent – ideal für n8n & Audits.</li>
+</ol>
+
+<div class="todo"><strong>Jetzt möglich:</strong> Proof-of-Concept mit 2 Kategorien (z. B. BU & Hausrat) fahren; Ergebnisse mit Vertrieb/Service spiegeln und Gewichte feinjustieren.</div>
+
+<!-- ========================================= -->
+<h2>13) Quellen & Hinweise</h2>
+<p class="small">
+Offizielle Ahrefs-Dokumentation (API v3):
+</p>
+<ul class="small">
+  <li>API Einführung & Abdeckung: „Introduction | API“ (Site/Keywords Explorer, SERP Overview, Rank Tracker, Site Audit). Quelle: <a href="https://docs.ahrefs.com/docs/api/reference/introduction">Ahrefs API Intro</a>. :contentReference[oaicite:0]{index=0}</li>
+  <li>Keywords Explorer → Overview (Metriken je Keyword-Set). Quelle: <a href="https://docs.ahrefs.com/docs/api/keywords-explorer/operations/get-a-overview">Overview endpoint</a>. :contentReference[oaicite:1]{index=1}</li>
+  <li>Keywords Explorer → Related Terms. Quelle: <a href="https://docs.ahrefs.com/docs/api/keywords-explorer/operations/list-related-terms">Related terms</a>. :contentReference[oaicite:2]{index=2}</li>
+  <li>Keywords Explorer → Volume by Country (DE). Quelle: <a href="https://docs.ahrefs.com/docs/api/keywords-explorer/operations/get-a-volume-by-country">Volume by country</a>. :contentReference[oaicite:3]{index=3}</li>
+  <li>Site Explorer → Organic Keywords (optional). Quelle: <a href="https://docs.ahrefs.com/docs/api/site-explorer/operations/list-organic-keywords">Organic keywords</a>. :contentReference[oaicite:4]{index=4}</li>
+  <li>Management → Project Keywords (kostenlose Listenabfrage). Quelle: <a href="https://docs.ahrefs.com/docs/api/management/operations/list-project-keywords">Project keywords</a>. :contentReference[oaicite:5]{index=5}</li>
+  <li>Ahrefs KD-Definition & Skala (0–100, nicht linear; RD-basiert). Quelle: <a href="https://ahrefs.com/keyword-difficulty">Keyword Difficulty</a>. :contentReference[oaicite:6]{index=6}</li>
+  <li>API v3 Überblick (Enterprise/Endpunkte) – Help Center. Quelle: <a href="https://help.ahrefs.com/en/articles/6559232-about-api-v3-for-enterprise-plan">About API v3</a>. :contentReference[oaicite:7]{index=7}</li>
+</ul>
+
+<div class="hr"></div>
+<p class="small">Hinweis: Dieses Blueprint setzt ausschließlich die Ahrefs-API ein (Vorgabe). Für spätere Reifegrade können zusätzliche interne Signale (z. B. Conversiondaten) die Priorisierung weiter verbessern.</p>
+
+</body>
+</html>
